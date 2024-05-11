@@ -1,0 +1,56 @@
+여기서의 segment는 코드가 모인 부분
+
+0000000000000
+이면 pagefault
+
+page table entry 채워주기
+
+사용되지 않는 pmf를 찾아야함
+
+매핑이 잘되면 present 1
+
+
+
+swapping
+pte가 매핑되지 않음
+가용한 페이지가 없을때
+FIFO방식으로 swap out
+
+swap space에 복사
+swap space에 들어가면 present는 0
+
+이제 남은 페이지에 
+
+
+
+PDE/PTE
+PFN 상위 12bit
+D: 쓰기작업 여부
+쓰기작업이 있었을떄 evict할때 swapout으로 업데이트
+D가 0인데 evict해야하면 swapout없이 버림
+P: 매핑되어있는 PPF가 있다없다
+2~3 bit는 안씀
+
+매핑되지 않으면 000000000000
+
+스왑공간의 offset은 1부터 시작
+P는 항상 0(swap out되면 없기때문)
+Page directory는 스왑아웃 되지 않음
+
+
+0이면 항상 page fault
+다 0인데 p가1이면
+0 page frame에 매핑 된것 그 페이지에는  write가 일어나지 않았다
+
+dirty가 1이고 present가 0이면 스왑공간에 있다.
+
+
+
+
+d의 범위를 벗어나면 segfault발생
+
+
+
+pmem. swaps: 물리, swap공간의 base
+
+context switch마다 pdbr이 pgdir을 가르켜야함
