@@ -1,4 +1,4 @@
-#define ADDR_SIZE 16
+﻿#define ADDR_SIZE 16
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -13,13 +13,13 @@ void ku_dump_pmem(void);
 void ku_dump_swap(void);
 
 int page_cursor;
-
-int *pmfree;
-int *swfree;
+int tSlice;
+char *pmfree;
+char *swfree;
 int n;
 
 
-struct pcb{
+struct pcb {
 	unsigned short pid;
 	FILE *fd;
 	unsigned short *pgdir;
@@ -30,95 +30,95 @@ struct pcb{
 
 int ku_traverse(unsigned short va, int write);
 
-void ku_freelist_init(){
+void ku_freelist_init() {
 	printf("in freelist init\n");
 	/* Initializes the free list for pfnum frames in the physical memory
 	 • Initializes the free list for sfnum frames in the swap space
 	 • Either linked list, array, or bitmap is fine
 	*/
 
-	pmfree = (int*)malloc(pfnum*sizeof(int));
-	swfree = (int*)malloc(sfnum*sizeof(int));
+	pmfree = (int*)malloc(pfnum * 64);
+	swfree = (int*)malloc(sfnum * 64);
 
-	for(int i= 0; i< 64<<12; i++){
-		pmem[i] = 0;
-	}
-	for(int i= 0; i< 64<<14; i++){
-		swaps[i] = 0;
-	}
-
-	for(int i= 0; i<pfnum; i++){
+	for (int i = 0; i < 64 << 12; i++) {
 		pmem[i] = 0;
 		pmfree[i] = 0;
 	}
-
-	for(int i= 0; i<sfnum; i++){
+	for (int i = 0; i < 64 << 14; i++) {
 		swaps[i] = 0;
 		swfree[i] = 0;
 	}
 
+
 }
-int ku_proc_init(int argc, char *argv[]){
+int ku_proc_init(int argc, char *argv[]) {
 
 
-/* Initializes PCBs and page directories for n processes
-	 • Either linked list or array is fine
-	 • Allocates page directory– Zero-filling
-	 » Will be mapped one-by-one by the page fault handler (i.e., on demand paging)– Page directory is not swapped-out
-	 */
-//page directory는 page fault에서 제외하고
+	/* Initializes PCBs and page directories for n processes
+		 • Either linked list or array is fine
+		 • Allocates page directory– Zero-filling
+		 » Will be mapped one-by-one by the page fault handler (i.e., on demand paging)– Page directory is not swapped-out
+		 */
+		 //page directory는 page fault에서 제외하고
 
-	printf("check");
-	printf("in proc init and n: %d\n", n);
-	printf("check");
-	printf("%d\n", argc);
-	printf("checka");
-	for(int i= 0; i < argc; i++) {
+	printf("proc init start");
+	
+	for (int i = 0; i < argc; i++) {
 		printf(" %s ", argv[i]);
 	}
-	FILE *input =fopen(argv[1], "r");
+	FILE *input = fopen(argv[1], "r");
+	//FILE *inpu--t = fopen("input.txt", "r");
+	if (input == NULL) {
+		perror("File error: ");
+		return 1;
+	}
+
+	
 	myPcb = (struct pcb *)malloc(sizeof(struct pcb)*n);
 	pdbr = (unsigned short *)malloc(sizeof(unsigned short)*n);
 	page_cursor = 0;
 	char com; //d
-	int ind=0;
+	int ind = 0;
 	int pnum;
 	char* proc[10];
-	while(!feof(input)) {
-		proc[ind] = (char *)malloc(sizeof(char)*10);
+	
+	while (!feof(input)) {
+		proc[ind] = (char *)malloc(sizeof(char) * 10);
 		fscanf(input, " %d %s", &pnum, proc[ind]);
-		ind++;
-		printf(" proc: %s ", proc[ind]);
+		
+		
 		char str[100];
 		fgets(str, 100, input);
-		printf("%s", str);
+		
+		ind++;
 	}
+	
 	n = pnum;
-	for(int i=0; i < n; i++){//argc = 7
+	for (int i = 0; i < n+1; i++) {//argc = 7
 		myPcb[i].fd = fopen(proc[i], "r");
-		printf("check 1\n");
-		if(fscanf(myPcb[i].fd, " %c", &com)==EOF) {
+		
+		if (fscanf(myPcb[i].fd, " %c", &com) == EOF) {
 			return 1;
 		}
-		printf("check 2\n");
-		if (fscanf(myPcb[i].fd, "%d %d", &myPcb[i].vbase, &myPcb[i].vlength) ==EOF) {
+		
+		if (fscanf(myPcb[i].fd, "%d %d", &myPcb[i].vbase, &myPcb[i].vlength) == EOF) {
 			return 1;
 		}
-		printf("check 3\n");
+		
 		myPcb[i].pid = i;
 		myPcb[i].pgdir = (unsigned short *)calloc(32, sizeof(unsigned short));
-		pdbr[i] = 0x0000;
-		printf("check 4\n");
+		pdbr[i] = 0x0;
+		
 	}
 	//ku_dump_pmem();
-	for(int i=0; i < n; i++){
+	/*for (int i = 0; i < n; i++) {
 		free(proc[i]);
-	}
+	}*/
 	printf("proc init end successful: %d\n", n);
 	return 0;
 
 }
-int ku_scheduler(unsigned short arg1){/*
+int ku_scheduler(unsigned short arg1) {/*
 	» unsigned short: current process ID (10 for the first call)
 	 » Return value 0: success,
 	1: error (no processes)
@@ -126,18 +126,26 @@ int ku_scheduler(unsigned short arg1){/*
 	PID 0)
 	 » Updates current and pdbr
 	 */
-//pid 10이 들어오면 0번부터 시작
-	printf("in scheduler\n");
+	 //pid 10이 들어오면 0번부터 시작
+	//printf("in scheduler\n");
 	int pid = arg1;
-	if(arg1 == 10) pid = 0;
 
-	if(pid < 0 || pid >=n) return 1;
-
-	current = &myPcb[pid+1];
+	if (arg1 == 10) pid = 0;
+	if (pid < 0 || pid > n) return 1;
+	if (tSlice >= 5) {
+		if (arg1 == n) pid = 0;
+		else pid++;
+		tSlice = 0;
+	}
+	
+	current = &myPcb[pid];
 	pdbr[pid] = (unsigned short)current->pgdir;
+	//printf("sched end successful\n");
+	tSlice++;
 	return 0;
 }
-int ku_pgfault_handler(unsigned short arg1){
+int current_pfn = 0;
+int ku_pgfault_handler(unsigned short arg1) {
 	/*unsigned short : virtual address that generates a page fault
 	 » Return value 0: success,
 	1: error (segmentation fault or no space)
@@ -149,27 +157,38 @@ int ku_pgfault_handler(unsigned short arg1){
 	 » Updates free lists
 	 » Updates PED or PTE
 * */
-	printf("in pgfault handler\n");
+	//printf("in pgfault handler with: %d \n", arg1);
 	unsigned short va, pa;
 	int pid = current->pid;
-	va = (arg1 & 0xFFC0) >> 6;
-	pa = ku_traverse(va, 0);
+	unsigned short *page_table = current->pgdir;
+	int PFN = current_pfn;
+	va = arg1;
+	pa = page_table;
+	pa = pa >> 6;
+	pa = pa + arg1;
+	printf("pa: %d\n", pa);
+	
 
-	if(va<myPcb[pid].vbase || va>myPcb[pid].vbase+myPcb[pid].vlength) {
-		return 1;
+	if (va<myPcb[pid].vbase || va>=myPcb[pid].vbase + myPcb[pid].vlength) {// 범위 바깥
+		return 1; // Segfault
 	}
-	if(pmfree[pa]==0) {
+	if (pmfree[pa] == 0) {//page fault, mapping
 		pmfree[pa] = 1;
 		myPcb[pid].pgdir[va] = pa;
+		page_table[PFN] = pa|1;
+		current_pfn++;
 	}
-	else {//swap out
+	else {//이미 있는곳 swap
+		
 
 	}
+	
+	//printf("pgfault handler successful\n");
 	return 0;
-//page directory는 스왑안함
+	//page directory는 스왑안함
 
 }
-int ku_proc_exit(unsigned short arg1){
+int ku_proc_exit(unsigned short arg1) {
 	/* » unsigned short: process ID
 	 » Return value 0: success,
 	1: error (invalid PID)
@@ -178,17 +197,17 @@ int ku_proc_exit(unsigned short arg1){
 	lists
 *
 * */
-	printf("in proc exit");
+	printf("in proc exit\n");
 	int pid = arg1;
 
-	if(pid < 0 || pid >=n) return 1; //invalid PID
+	if (pid < 0 || pid >= n) return 1; //invalid PID
 
 	fclose(myPcb[pid].fd);
-	free(pdbr[pid]);
-	for(int i =0; i < 32; i++){
+	
+	for (int i = 0; i < 32; i++) {
 		unsigned short vpn = i;
 		unsigned short pfn = myPcb[pid].pgdir[vpn];
-		if(pfn < pfnum) {
+		if (pfn < pfnum) {
 			pmem[pfn] = 0;
 		}
 	}
